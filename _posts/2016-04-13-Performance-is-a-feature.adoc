@@ -1,29 +1,28 @@
 = Performance is a feature
 Cédric Champeau <cedric@gradle.com>
 
-At Gradle Inc., we take performance seriously. Every Gradle release comes with performance improvements, but starting from Gradle 2.13, we decided to start working on a _performance burst_ to tackle long standing issues that affect most of our users. In this blog post series, we will explore how we approach performance issues, and what improvements you can expect in the 2.13 release and the upcoming ones.
+At Gradle Inc., we take performance seriously. While we bundle performance improvements into every Gradle release, we’ve kicked off a concerted effort called a _performance burst_ from Gradle 2.13 in order to make building software faster and more enjoyable for all of our users. In this blog post, we will explore how we approach performance issues, as well as what improvements to expect in the 2.13 release and beyond.
 
-== You're never as fast as when you have nothing to do
+== The fastest thing to do is nothing
 
-First of all, the biggest performance improvement is when you have nothing to do. That's why, unlike traditional build tools such as Maven or Ant, Gradle focuses on incremental builds. Why would you ever run `clean` when you don't need to? For some developers, running `clean` became a conditioned response to a broken build tool. Gradle doesn't have such an issue: being aware of all inputs and outputs of a task, it is reliably capable of handling incremental builds. That's why we usually focus on making incremental builds faster, and recommand to turn the daemon on.
+Building software takes time, which is why the biggest performance improvement is cutting steps out of it entirely. That's why, unlike traditional build tools such as Maven or Ant, Gradle focuses on incremental builds. Why would you ever run `clean` when you don't need to? For some developers, running `clean` became a conditioned response to a broken build tool. Gradle doesn't have such an issue: aware of all inputs and outputs of a task, it is reliably capable of handling incremental builds. Most builds will be incremental, and that's why we focus so heavily on optimizing this case. One way that we accomplish this is through the Gradle daemon.
 
-The https://docs.gradle.org/current/userguide/gradle_daemon.html[Gradle daemon] is your best friend when it comes to achieving the best performance with Gradle. Basically, the daemon is a hot JVM hosting the Gradle runtime, making it possible to run subsequent builds much faster: instead of spawning a new JVM for each build, we can benefit from all the goodness of having a cached JVM, in particular, benefit from the JIT (just in time compiler). While turning on the daemon has a cost for the first build, the amount of time that you will gain for each subsequent build is very important. In Gradle 2.13, we focused our improvements when the daemon is activated, and we're preparing Gradle to enable this by default in Gradle 3.0. However, the performance improvements we implemented will benefit all users, independently of whether they use the daemon or not.
+The https://docs.gradle.org/current/userguide/gradle_daemon.html[Gradle daemon] can dramatically improve your build performance by allowing build data to persist in memory between build invocations and avoiding JVM startup times on each build. The daemon is a hot JVM hosting the Gradle runtime, making it possible to run subsequent builds much faster: instead of spawning a new JVM for each build, we can benefit from all the goodness of having a cached JVM - in particular, we realize a strong benefit from JIT (just in time compilation). While turning on the daemon has a cost for the first build, the amount of time that you will gain for each subsequent build more than offsets the initial cost. In Gradle 2.13, we focused our improvements when the daemon is activated, and we're preparing to enable this by default in Gradle 3.0. Other performance improvements we've implemented will benefit all users, independently of whether they use the daemon or not (and if you don't use the daemon yet, we strongly encourage you to try it out!).
 
-As you can read in our https://docs.gradle.org/2.13-rc-1/release-notes[release notes], we have worked on different topics:
+As you can read in our https://docs.gradle.org/2.13-rc-1/release-notes[release notes], we’ve emphasized several categories of performance improvements:
 
-* reducing the build configuration time, that is to say, reduce the fixed cost of creating and configuring a Gradle build
-* reducing the test execution time, that is to say reducing the overhead of Gradle compared to just executing tests in an IDE, typically
-* improving the performance of the Tooling API
-* improving the communication of Gradle with the daemon process
+* reducing the build configuration time, that is to say, reducing the fixed cost of creating and configuring a Gradle build
+* reducing the test execution time; i.e., reducing the overhead of Gradle compared to just executing tests in an IDE
+* improving the performance of importing a project in an IDE
+* reducing communication latency between the interactive Gradle client and the daemon process
 
 == Reducing configuration time
 
-To give you an idea of what kind of improvements you can expect, it's good to start with a graph that illustrates the improvement:
+Here’s an idea of the improvement you can expect:
 
 image::../hubpress/images/many-empty.png[]
 
-
-In this case, we're measuring the time it takes to run `gradle help` for a project that contains a lot of subprojects (10000 projects). You can see that when we started optimizing configuration time, the `master` branch was slower than Gradle 2.7. Now, Gradle 2.13 is faster than ever! However, more than the improvement, it's _how_ we get to this that is important. Improving performance is a process, and here is how it works.
+So the example above yields a typical performance test metric: we’re comparing the average execution time of a build when we run `gradle help` for a project that contains a lot of subprojects (10000 projects). You can see that when we started optimizing configuration time, the `master` branch was slower than Gradle 2.7. Now, Gradle 2.13 is faster than ever! We have measured up to 25% reduction on our own builds! However, more than the improvement, it's _how_ we get to this that is important. Improving performance is a process, and here is how it works.
 
 === Performance test suite
 
@@ -32,23 +31,23 @@ The Gradle sources contain a https://github.com/gradle/gradle/tree/master/subpro
 * to compare the performance of the `master` branch with previous releases of Gradle
 * to compare various build scenarios against a single version of Gradle
 
-So typically, in the example above, we're comparing the average execution time of a build, when we run `gradle help`, for a specific scenario (an empty build with 10000 sub-projects), and compare it with previous Gradle releases. It's worth noting that this performance test suite is executed daily, allowing us to catch performance regressions very early in the development phase. Today, we have so many performance tests that running them on our infrastructure takes around 20 hours! However, this is an important price to pay: performance is a critical feature.
+So typically, in the example above, we're comparing the average execution time of a build, when we run `gradle help`, in a specific scenario (an empty build with 10000 sub-projects), and compare it with previous Gradle releases. It's worth noting that this performance test suite is executed daily, allowing us to catch performance regressions very early in the development phase.
 
 === Writing a performance test scenario
 
 So how, in practice, do we write a performance test? It all starts with a scenario we want to test. For example, we want to make sure that we reduce the duration of test execution. The first step is then to write a build template that will let us test Gradle against this scenario. And a template has various parameters: the number of sub-projects, the number of (test) classes in source, external dependencies, ... This let us generate sample Gradle builds that are used to measure performance. Of course, those https://github.com/gradle/gradle/tree/master/subprojects/performance[performance test builds are generated with Gradle].
 
-All the graphs you will see below were generated using fully automated performance tests, and aimed at testing specific scenarios. Should you find a performance issue with Gradle, this is a great way to get started: create a new template, then send us a pull request to show the problem. Of course, all our performance tests are regular test cases, which means that we can *fail the build if we introduce a regression*. In practice, it's always a design decision to allow a regression to be shipped. One would wonder why we would release if we see a regression, but often the world is not black and white: a small regression in one area can introduce great performance improvements in another. It's typically the case when you introduce caches, which usually increase memory usage, while on the other hand dramatically reduce the execution time. After all, it's always a human process to accept a regression or not.
+All the graphs you see below were generated using fully automated performance tests, and aimed at testing specific scenarios. Should you find a performance issue with Gradle, this is a great way to get started: create a new template, then http://gradle.org/contribute-to-gradle/[send us a pull request to show the problem]. Of course, all our performance tests are regular test cases, which means that we can *fail the build if we introduce a regression*.
 
-Nevertheless, in Gradle 2.13, all you have is performance improvements! Let's focus on some of those.
+Since Gradle 2.13 is primarily a performance-enhancing release, let’s focus on some of the improvements.
 
 == Gradle vs Maven
 
-In this scenario, we are comparing the time it takes to execute `gradle clean test` vs `mvn clean test`. Of course the project is the same in both cases, and you would already notice that while I said no-one should ever be forced to call `clean`, in practice, you have to do it for Maven, so this scenario is useful to compare the time it takes to effectively build a project from nothing and execute tests. Here are the results:
+In this scenario, we are comparing the time it takes to execute `gradle clean test` vs `mvn clean test`. As we mentioned earlier, cleaning is not necessary in Gradle, but we do it here for the sake of comparison against Maven, and to assess the "cold build" time. Here are the results:
 
 image::../hubpress/images/gradle-vs-maven-clean-build.png[]
 
-You can see that we were a bit slower than Maven in this case when we started to optimize things, but Gradle 2.13 is significantly faster. In particular, we came from 50s to 45s, that is to say a 10% improvement! You can notice that the graph contains some glitches: on february 2d, you can see that the time considerably increased. However, it increased in both scenarios: Maven *and* Gradle. So what you need to keep in mind when reading such graphs is that results are relative between them for a same date. This is important because:
+At the end of February, Maven and Gradle were comparable. Since then, the new performance improvements in Gradle 2.13 have resulted in a 10% speedup! You can notice that the graph contains some glitches: on April 2nd, you can see that the time considerably increased. However, it increased in both scenarios: Maven and Gradle. So what you need to keep in mind when reading such graphs is that results are relative between them for a same date. This is important because:
 
 * we could change the templates between two executions of the performance build, resulting in an increase or decrease of the build time.
 * we could change hardware between two executions, leading to the same side effects
@@ -57,11 +56,9 @@ You can see that we were a bit slower than Maven in this case when we started to
 
 So how did we manage to improve this? First of all, once a scenario is written and performance tests running, we need to profile the builds. For that purpose, we're using different tools, from https://www.yourkit.com/[YourKit Java Profiler] to http://www.oracle.com/technetwork/java/javaseproducts/mission-control/java-mission-control-1998576.html[Java Mission Control], the JIT logs or simply good old `System.out.println` statements. In the end, we try to identify what is causing slowdown and write a document summarizing our findings. Those documents are all public, and you can find them in our https://github.com/gradle/gradle/tree/master/design-docs/features/faster-builds[GitHub repository]. Once we've identified hotspots and written down the profiling results, we extract stories for improvement and actually go to the implementation phase. This "profiling to stories" phase is very important, because while a profiler will be very helpful in identifying hotspots, it will be no help when it comes to interpreting the results: often, rewriting an algorithm can be much more efficient than trying to optimize a SAX parser...
 
-So here is some of the things we improved in 2.13.
-
 === Optimizing the communication between the daemon and the client
 
-As we explained, we're primarily (but not only) focusing on improving performance when the daemon is activated. One issue with the daemon is that you have a forked JVM. When you run `gradle`, the client process, the one from the command-line, starts communicating with a long-living process, the daemon, which is effectively executing the build. And typically, to see the logs as the build is running, you need to forward events from the daemon to the client. Before 2.13, this communication was synchronous. This means that the log messages were sent synchronously between the daemon and the client. This was inefficient, because we were blocking on network I/O where we could actually perform some build operations. In 2.13, not only communication is asynchronous, but we also optimized the protocol that is used to communicate between the client and the daemon, as well as optimized how the client renders those log events.
+As we explained, we're primarily (but not only) focusing on improving performance when the daemon is activated. One issue with the daemon is that you have a forked JVM. When you run `gradle`, the client process, the one from the command-line, starts communicating with a long-living process, the daemon, which is effectively executing the build. And typically, to see the logs as the build is running, you need to forward events from the daemon to the client. Before 2.13, this communication was synchronous. This means that the log messages were sent synchronously between the daemon and the client. This was inefficient, because we were blocking on network I/O where we could actually perform some build operations. In 2.13, not only is communication asynchronous, but we also optimized the protocol that is used to communicate between the client and the daemon and how the client responds to these events.
 
 === Forked processes start up faster
 
@@ -69,7 +66,7 @@ Another improvement that was made is visible in the following scenario:
 
 image::../hubpress/images/gradle-vs-maven-cleanTest-test.png[]
 
-This scenario is "unfair" to Gradle, and meant to compare what happens when we just want to re-execute the tests. As you may know, when running `mvn test`, Maven will re-execute the tests even if nothing changed. Gradle does nothing in that case, because everything is "up-to-date". So to emulate the behavior of Maven, we need to clean-up the test results so that we re-execute the tests and re-generate the reports. As you can see, in this scenario, Gradle was significantly slower than Maven. Now, it is faster, while doing also more work: Gradle not only runs the tests, but also generates 3 types of reports: a binary one, an XML one (for CI integration) and eventually an HTML report (for use by us, poor humans). Gradle 2.12 is 15% on this scenario, and a large amount of improvement has been done by optimizing the classpath of the forked JVMs used for tests. In 2.12, almost the whole Gradle classpath was used on forked VMs, when in reality we just need a subset of Gradle classes (basically to communicate between the forked VM and the daemon). By optimizing this classpath, we can now reduce classpath scanning and significantly improve the time it takes to execute tests. If you ever noticed a "pause" when Gradle was about to execute tests, it has now gone!
+This scenario is "unfair" to Gradle, and meant to compare what happens when we just want to re-execute the tests. As you may know, when running `mvn test`, Maven will re-execute the tests even if nothing changed. Gradle does nothing in that case, because everything is "up-to-date". So to emulate the behavior of Maven, we need to clean-up the test results so that we re-execute the tests and re-generate the reports. As you can see, in this scenario, Gradle was significantly slower than Maven. Now, it is faster, while doing also more work: Gradle not only runs the tests, but also generates 3 types of reports: a binary one, an XML one (for CI integration) and eventually an HTML report (for use by us, poor humans, but you can https://docs.gradle.org/current/javadoc/org/gradle/api/tasks/testing/TestTaskReports.html[disable this behavior]). Gradle 2.12 is 15% slower in this scenario, and a large amount of improvement has been done by optimizing the classpath of the forked JVMs used for tests. In 2.12, almost the whole Gradle classpath was used on forked VMs, when in reality we just need a subset of Gradle classes (basically to communicate between the forked VM and the daemon). By optimizing this classpath, we can now reduce classpath scanning and significantly improve the time it takes to execute tests. If you ever noticed a "pause" when Gradle was about to execute tests, it has now gone!
 
 === Reports are generated in parallel
 
@@ -79,7 +76,7 @@ Part of the improvement on test execution is also obtained thanks to parallel ge
 == Improving build startup time
 === Faster script compilation
 
-When executing Gradle builds for the first time, you can see, as part of the "configuration" phase, that Gradle is actually compiling the build scripts. Despite being scripts, Gradle build files are nevertheless compiled to bytecode. This is time consuming, and optimized by Gradle. In particular, Gradle has to compile the scripts several times, with different classpath, in order to be able to compile scripts that contain references to remote plugins, etc...
+When executing Gradle builds for the first time, you can see, as part of the "configuration" phase, that Gradle is actually compiling the build scripts. Despite being scripts, Gradle build files are written in Groovy and are nevertheless compiled to bytecode. This is time consuming, but has been optimized by the Gradle team. In particular, Gradle has to compile the scripts several times, with different classpaths, in order to compile scripts that contain references to remote resources such as plugins.
 
 In Gradle 2.13, we changed the way Gradle scripts are compiled, and optimized two scenarios:
 
@@ -92,11 +89,11 @@ Another work that has been done in 2.13 is improving the classpath of Gradle, so
 
 === Bugfixes
 
-Sometimes, improving performance is also being lucky. Typically, we discovered that for some reason, some performance tests were executing significantly faster on our CI server than locally. After doing some profiling, we realized that the code to propagate properties from the various `gradle.properties` files to the actual `Project` was very inefficient: the more properties you had in your various `gradle.properties` file, the longer it would take to start the build! We identified the problem and fixed this. If you ever had a build that was unexpectedly slower on your computer than on your mate's one, maybe this was your problem...
+Sometimes, improving performance is a matter of serendipity. We recently discovered that some performance tests were executing significantly faster on our CI server than locally, but were unsure of the cause. After doing some profiling, we realized that the code to propagate properties from the various `gradle.properties` files to the actual `Project` was very inefficient: the more properties you had in your various `gradle.properties` file, the longer it would take to start the build! We identified the problem and fixed this.
 
-== Improving the Tooling API
+== Faster IDE integration
 
-The Tooling API typically allows IDE vendors to integrate Gradle. The Tooling API has very specific needs. In particular, it has to be both backwards and forward compatible. What does it mean? It means that a certain version of the TAPI can execute Gradle builds for older version of Gradle as well as newer versions of Gradle. Of course, a developer would only benefit from the latest improvements by using both the highest version of the Tooling API and Gradle, but it leads to interesting architecture.
+The Tooling API typically allows IDE vendors to integrate Gradle. This is typically what we do with http://projects.eclipse.org/projects/tools.buildship[Buildship] It has very specific needs and in particular, it has to be both backwards and forward compatible, meaning a certain version of the TAPI can execute Gradle builds for both older and newer versions of Gradle. Of course, a developer would only benefit from the latest improvements by using both the latest version of the Tooling API and Gradle, but it leads to interesting architecture.
 
 In this case, the Tooling API heavily relies on reflection to invoke methods. In Gradle 2.13, we significantly improved caching, which led to spectacular results:
 
