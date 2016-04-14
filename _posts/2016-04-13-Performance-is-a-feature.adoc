@@ -93,13 +93,13 @@ Sometimes, improving performance is a matter of serendipity. We recently discove
 
 == Faster IDE integration
 
-The Tooling API typically allows IDE vendors to integrate Gradle. This is typically what we do with http://projects.eclipse.org/projects/tools.buildship[Buildship] It has very specific needs and in particular, it has to be both backwards and forward compatible, meaning a certain version of the TAPI can execute Gradle builds for both older and newer versions of Gradle. Of course, a developer would only benefit from the latest improvements by using both the latest version of the Tooling API and Gradle, but it leads to interesting architecture.
+The Tooling API typically allows IDE vendors to integrate Gradle. This is what we do with http://projects.eclipse.org/projects/tools.buildship[Buildship]. It has very specific needs and in particular, it has to be both backwards and forward compatible, meaning a certain version of the TAPI can execute Gradle builds for both older and newer versions of Gradle. Of course, a developer would only benefit from the latest improvements by using both the latest version of the Tooling API and Gradle, but it leads to interesting architecture.
 
 In this case, the Tooling API heavily relies on reflection to invoke methods. In Gradle 2.13, we significantly improved caching, which led to spectacular results:
 
 image::../hubpress/images/tapi.png[]
 
-This scenario illustrates how long it takes to import, typically, a 500 sub-projects build into Eclipse. While it took 25s with the 2.12 version of the Tooling API, it's now only 10s. And you can even more spectacular results in IntelliJ IDEA, where they are using "custom models". Imports/synchronizing projects would then be orders of magnitude faster.
+This scenario illustrates how long it takes to import, typically, a 500 sub-projects build into Eclipse. While it took 25s with the 2.12 version of the Tooling API, it's now only 10s. And you can even see more spectacular results in IntelliJ IDEA, where they are using "custom models". Imports/synchronizing projects would then be orders of magnitude faster.
 
 == There's more to come!
 
