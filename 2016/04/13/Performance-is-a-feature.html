@@ -23,7 +23,7 @@
     <meta property="og:description" content="At Gradle Inc., we take performance seriously. While we bundle performance improvements into every Gradle release, we’ve kicked off a concerted effort called a performance burst from Gradle 2.13 in order to make building software faster and more..." />
     <meta property="og:url" content="https://melix.github.io/hubpress/2016/04/13/Performance-is-a-feature.html" />
     <meta property="article:published_time" content="2016-04-12T22:00:00.000Z" />
-    <meta property="article:modified_time" content="2016-04-14T07:55:28.457Z" />
+    <meta property="article:modified_time" content="2016-04-14T09:38:12.310Z" />
     
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Performance is a feature" />
@@ -45,7 +45,7 @@
     "headline": "Performance is a feature",
     "url": "https://melix.github.io/hubpress/2016/04/13/Performance-is-a-feature.html",
     "datePublished": "2016-04-12T22:00:00.000Z",
-    "dateModified": "2016-04-14T07:55:28.457Z",
+    "dateModified": "2016-04-14T09:38:12.310Z",
     "description": "At Gradle Inc., we take performance seriously. While we bundle performance improvements into every Gradle release, we’ve kicked off a concerted effort called a performance burst from Gradle 2.13 in order to make building software faster and more..."
 }
     </script>
@@ -260,7 +260,7 @@
 <h2 id="_faster_ide_integration">Faster IDE integration</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The Tooling API typically allows IDE vendors to integrate Gradle. This is typically what we do with <a href="http://projects.eclipse.org/projects/tools.buildship">Buildship</a> It has very specific needs and in particular, it has to be both backwards and forward compatible, meaning a certain version of the TAPI can execute Gradle builds for both older and newer versions of Gradle. Of course, a developer would only benefit from the latest improvements by using both the latest version of the Tooling API and Gradle, but it leads to interesting architecture.</p>
+<p>The Tooling API typically allows IDE vendors to integrate Gradle. This is what we do with <a href="http://projects.eclipse.org/projects/tools.buildship">Buildship</a>. It has very specific needs and in particular, it has to be both backwards and forward compatible, meaning a certain version of the TAPI can execute Gradle builds for both older and newer versions of Gradle. Of course, a developer would only benefit from the latest improvements by using both the latest version of the Tooling API and Gradle, but it leads to interesting architecture.</p>
 </div>
 <div class="paragraph">
 <p>In this case, the Tooling API heavily relies on reflection to invoke methods. In Gradle 2.13, we significantly improved caching, which led to spectacular results:</p>
@@ -271,7 +271,7 @@
 </div>
 </div>
 <div class="paragraph">
-<p>This scenario illustrates how long it takes to import, typically, a 500 sub-projects build into Eclipse. While it took 25s with the 2.12 version of the Tooling API, it&#8217;s now only 10s. And you can even more spectacular results in IntelliJ IDEA, where they are using "custom models". Imports/synchronizing projects would then be orders of magnitude faster.</p>
+<p>This scenario illustrates how long it takes to import, typically, a 500 sub-projects build into Eclipse. While it took 25s with the 2.12 version of the Tooling API, it&#8217;s now only 10s. And you can even see more spectacular results in IntelliJ IDEA, where they are using "custom models". Imports/synchronizing projects would then be orders of magnitude faster.</p>
 </div>
 </div>
 </div>
