@@ -1,0 +1,23 @@
+= Gradle 3.0 M2 brings Java 9 support
+
+The second milestone of Gradle 3.0 has just been released, and this version comes with initial support for Java 9!
+
+It means that Gradle now runs properly when executed on the latest Java 9 EAP builds, but also that you can build and run tests using early versions of JDK 9. It is however important to understand that while you can compile and test applications with JDK 9, we do *not* support modules yet, nor any JDK 9 specific compile options (like `-release` or `-modulepath`). However we would gladly appreciate any feedback with your own projects.
+
+== More performance improvements
+
+This milestone is also a good moment to check out our latest and greatest performance improvements. It's always better to perform measurements on real life builds, so the example below uses the Golo programming language as an example, and compares the execution time of a clean build of this project. The left pane is using Gradle 2.12 while the right pane is using Gradle 3.0 M2:
+
+screencast:test-golo[]
+
+As you can see, despite the Gradle 3.0 build has a cold daemon, it's already faster. But since Gradle 3.0 M1 enabled the daemon by default, subsequent builds will be faster. In particular, look at this up-to-date build execution:
+
+screencast:test-golo-uptodate[]
+
+Gradle 2.12 had to fork a new VM, making it significantly slower than 3.0. But since Gradle 2.12, we've made significant progress in performance, that can be summarized in a few lines:
+
+* configuration time is now faster, meaning that the time it will take from the moment you invoke a Gradle task and the moment the task is actually executed is much shorter
+* execution with the daemon has been optimized, meaning that since Gradle 3.0 enabled it by default, you will immediately benefit from faster builds
+* build script caching has been reworked, so that subsequent builds are not faster to configure, but also builds running concurrently will no longer hang. This is particularly important for non-isolated builds running on a CI server
+
+Last but not least, we also took a look at the rare cases where Gradle was still slower than Maven, and fixed those. The following screencast is an illustration of what you can expect from Gradle 3.0 compared to Maven. This project features a 25 subprojects build with each having around 200 files and unit tests. Then we're asking both Gradle and Maven to assemble it, without running tests.
